@@ -1,9 +1,11 @@
 <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = htmlspecialchars($_POST['username']);
-    header("Location: login.php?username=" . urlencode($username));
+    header("Location: register.php?username=" . urlencode($username));
     exit();
 }
+
+$usernameInUrl = isset($_GET['username']) ? htmlspecialchars($_GET['username']) : "";
 ?>
 
 <!DOCTYPE html>
@@ -17,6 +19,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body class="bg-light d-flex align-items-center justify-content-center min-vh-100">
 
   <div class="container">
+    <?php if ($usernameInUrl): ?>
+      <div class="alert alert-warning text-center fw-semibold fs-5">
+        Hello, <?= $usernameInUrl ?>! You have successfully registered.
+      </div>
+    <?php endif; ?>
+
     <div class="row justify-content-center">
       <div class="col-md-6">
         <div class="card shadow-sm">
@@ -52,18 +60,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               <div class="mb-3">
                 <label for="mobile" class="form-label">Mobile Number</label>
                 <input type="text" class="form-control" required name="mobile" id="mobile" autocomplete="mobile">
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label d-block">Gender:</label>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="gender" value="Male" id="genderMale">
-                  <label class="form-check-label" for="genderMale">Male</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="gender" value="Female" id="genderFemale">
-                  <label class="form-check-label" for="genderFemale">Female</label>
-                </div>
               </div>
 
               <div class="d-grid mt-4">
