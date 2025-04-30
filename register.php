@@ -1,11 +1,91 @@
 <?php
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = htmlspecialchars($_POST['username']);
-    header("Location: register.php?username=" . urlencode($username));
-    exit();
+// Database connection
+$host = 'localhost';
+$username = 'root';
+$password = ''; // Default password for XAMPP (empty by default)
+$port = 3307; // XAMPP MySQL default port (use 3306 if this doesn't work)
+
+// Correct mysqli connection
+$conn = new mysqli($host, $username, $password, port: $port); 
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
 }
 
-$usernameInUrl = isset($_GET['username']) ? htmlspecialchars($_GET['username']) : "";
+$errors = [];
+$success = "";
+
+// Handle form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Sanitize and retrieve form data
+    $first_name = htmlspecialchars(trim($_POST['first_name']));
+    $middle_name = isset($_POST['middle_name']) ? htmlspecialchars(trim($_POST['middle_name'])) : null;
+    $last_name = htmlspecialchars(trim($_POST['last_name']));
+    $email = htmlspecialchars(trim($_POST['email']));
+    $password = $_POST['password'];
+    $confirm_password = $_POST['confirm-password'];
+    $mobile = htmlspecialchars(trim($_POST['mobile']));
+
+    // Validate data
+    // First Name, Last Name (Minimum 2 letters and no extra characters)
+    if (!preg_match("/^[A-Za-z]{2,}$/", $first_name)) {
+        $errors[] = "First name must be at least 2 letters and contain no special characters.";
+    }
+
+    if (!preg_match("/^[A-Za-z]{2,}$/", $last_name)) {
+        $errors[] = "Last name must be at least 2 letters and contain no special characters.";
+    }
+
+    // Middle Name is optional, but if provided, must follow the same rule
+    if ($middle_name && !preg_match("/^[A-Za-z]{2,}$/", $middle_name)) {
+        $errors[] = "Middle name must be at least 2 letters and contain no special characters.";
+    }
+
+    // Email validation
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Invalid email format.";
+    }
+
+    // Mobile number validation (must be 11 digits starting with 0)
+    if (!preg_match("/^0\d{10}$/", $mobile)) {
+        $errors[] = "Mobile number must be 11 digits and start with 0.";
+    }
+
+    // Password validation (at least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character)
+    if (!preg_match("/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$/", $password)) {
+        $errors[] = "Password must be at least 8 characters, with 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.";
+    }
+
+    // Confirm password validation
+    if ($password !== $confirm_password) {
+        $errors[] = "Passwords do not match.";
+    }
+
+    // If no validation errors, insert into the database
+    if (empty($errors)) {
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT); // Hash the password
+
+        $stmt = $conn->prepare("INSERT INTO users (first_name, middle_name, last_name, email, password, mobile) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $first_name, $middle_name, $last_name, $email, $hashed_password, $mobile);
+
+        if ($stmt->execute()) {
+            $success = "You have successfully registered!";
+            // Redirect with first name as a query parameter
+            header("Location: register.php?first_name=" . urlencode($first_name));
+            exit();
+        } else {
+            $errors[] = "There was an error during registration. Please try again.";
+        }
+
+        $stmt->close();
+    }
+}
+
+$conn->close();
+
+// Retrieve first name from URL query if it exists
+$first_name_in_url = isset($_GET['first_name']) ? htmlspecialchars($_GET['first_name']) : "";
 ?>
 
 <!DOCTYPE html>
@@ -19,9 +99,19 @@ $usernameInUrl = isset($_GET['username']) ? htmlspecialchars($_GET['username']) 
 <body class="bg-light d-flex align-items-center justify-content-center min-vh-100">
 
   <div class="container">
-    <?php if ($usernameInUrl): ?>
-      <div class="alert alert-warning text-center fw-semibold fs-5">
-        Hello, <?= $usernameInUrl ?>! You have successfully registered.
+    <?php if ($first_name_in_url): ?>
+      <div class="alert alert-success text-center fw-semibold fs-5">
+        Hello, <?= $first_name_in_url ?>! You have successfully registered.
+      </div>
+    <?php endif; ?>
+
+    <?php if (!empty($errors)): ?>
+      <div class="alert alert-danger">
+        <ul>
+          <?php foreach ($errors as $error): ?>
+            <li><?= $error ?></li>
+          <?php endforeach; ?>
+        </ul>
       </div>
     <?php endif; ?>
 
@@ -30,11 +120,21 @@ $usernameInUrl = isset($_GET['username']) ? htmlspecialchars($_GET['username']) 
         <div class="card shadow-sm">
           <div class="card-body">
             <h3 class="card-title text-center mb-4">Sign Up</h3>
-            <form id="register-form" method="POST" action="register.php" onsubmit="return validate_passwords();">
+            <form id="register-form" method="POST" action="register.php" onsubmit="return validate_password();">
               
               <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" required name="username" id="username" autocomplete="username">
+                <label for="first_name" class="form-label">First Name</label>
+                <input type="text" class="form-control" required name="first_name" id="first_name" autocomplete="first_name">
+              </div>
+
+              <div class="mb-3">
+                <label for="middle_name" class="form-label">Middle Name (Optional)</label>
+                <input type="text" class="form-control" name="middle_name" id="middle_name" autocomplete="middle_name">
+              </div>
+
+              <div class="mb-3">
+                <label for="last_name" class="form-label">Last Name</label>
+                <input type="text" class="form-control" required name="last_name" id="last_name" autocomplete="last_name">
               </div>
 
               <div class="mb-3">
@@ -50,11 +150,6 @@ $usernameInUrl = isset($_GET['username']) ? htmlspecialchars($_GET['username']) 
               <div class="mb-3">
                 <label for="confirm-password" class="form-label">Confirm Password</label>
                 <input type="password" class="form-control" required name="confirm-password" id="confirm-password">
-              </div>
-
-              <div class="mb-3">
-                <label for="dob" class="form-label">Birthday</label>
-                <input type="date" class="form-control" required name="dob" id="dob">
               </div>
 
               <div class="mb-3">
@@ -79,9 +174,9 @@ $usernameInUrl = isset($_GET['username']) ? htmlspecialchars($_GET['username']) 
       const confirmPassword = document.getElementById('confirm-password').value;
       if (password !== confirmPassword) {
         alert('Passwords do not match!');
-        return false;
+        return false; // Prevent form submission
       }
-      return true;
+      return true; // Allow form submission
     }
   </script>
 
