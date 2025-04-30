@@ -5,8 +5,7 @@ $username = 'root';
 $password = ''; // Default password for XAMPP (empty by default)
 $port = 3307; // XAMPP MySQL default port (use 3306 if this doesn't work)
 
-// Correct mysqli connection
-$conn = new mysqli($host, $username, $password, port: $port); 
+$conn = new mysqli($host, $username, $password, port: $port);
 
 // Check connection
 if ($conn->connect_error) {
@@ -28,7 +27,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $mobile = htmlspecialchars(trim($_POST['mobile']));
 
     // Validate data
-    // First Name, Last Name (Minimum 2 letters and no extra characters)
     if (!preg_match("/^[A-Za-z]{2,}$/", $first_name)) {
         $errors[] = "First name must be at least 2 letters and contain no special characters.";
     }
@@ -37,42 +35,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = "Last name must be at least 2 letters and contain no special characters.";
     }
 
-    // Middle Name is optional, but if provided, must follow the same rule
     if ($middle_name && !preg_match("/^[A-Za-z]{2,}$/", $middle_name)) {
         $errors[] = "Middle name must be at least 2 letters and contain no special characters.";
     }
 
-    // Email validation
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = "Invalid email format.";
     }
 
-    // Mobile number validation (must be 11 digits starting with 0)
     if (!preg_match("/^0\d{10}$/", $mobile)) {
         $errors[] = "Mobile number must be 11 digits and start with 0.";
     }
 
-    // Password validation (at least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character)
     if (!preg_match("/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$/", $password)) {
         $errors[] = "Password must be at least 8 characters, with 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.";
     }
 
-    // Confirm password validation
     if ($password !== $confirm_password) {
         $errors[] = "Passwords do not match.";
     }
 
-    // If no validation errors, insert into the database
     if (empty($errors)) {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT); // Hash the password
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
         $stmt = $conn->prepare("INSERT INTO users (first_name, middle_name, last_name, email, password, mobile) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssssss", $first_name, $middle_name, $last_name, $email, $hashed_password, $mobile);
 
         if ($stmt->execute()) {
             $success = "You have successfully registered!";
-            // Redirect with first name as a query parameter
-            header("Location: register.php?first_name=" . urlencode($first_name));
+            $_SESSION['first_name'] = $first_name;
+
+            // Redirect to nextpage.php after successful registration
+            header("Location: nextpage.php");
             exit();
         } else {
             $errors[] = "There was an error during registration. Please try again.";
@@ -82,10 +76,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
-$conn->close();
-
-// Retrieve first name from URL query if it exists
-$first_name_in_url = isset($_GET['first_name']) ? htmlspecialchars($_GET['first_name']) : "";
 ?>
 
 <!DOCTYPE html>
@@ -99,12 +89,6 @@ $first_name_in_url = isset($_GET['first_name']) ? htmlspecialchars($_GET['first_
 <body class="bg-light d-flex align-items-center justify-content-center min-vh-100">
 
   <div class="container">
-    <?php if ($first_name_in_url): ?>
-      <div class="alert alert-success text-center fw-semibold fs-5">
-        Hello, <?= $first_name_in_url ?>! You have successfully registered.
-      </div>
-    <?php endif; ?>
-
     <?php if (!empty($errors)): ?>
       <div class="alert alert-danger">
         <ul>
@@ -120,7 +104,7 @@ $first_name_in_url = isset($_GET['first_name']) ? htmlspecialchars($_GET['first_
         <div class="card shadow-sm">
           <div class="card-body">
             <h3 class="card-title text-center mb-4">Sign Up</h3>
-            <form id="register-form" method="POST" action="register.php" onsubmit="return validate_password();">
+            <form method="POST" action="register.php" onsubmit="return validate_password();">
               
               <div class="mb-3">
                 <label for="first_name" class="form-label">First Name</label>
